@@ -5,7 +5,7 @@ names(testone) <- c("RecordT","start","end","type","time","number")
 library(dplyr)
 #建立想要的路段 並變成dataframe 
 station <- c("01F0928S","01F0880S","01F0750S","01F0681S","01F0664S","01F0633S","01F0578S","01F0557S","01F0532S","01F0509S","01F0467S","01F0413S","01F0376S","01F0339S","01F0293S","01F0264S")
-x <- data.frame(station )
+x <- data.frame(station)
 names(x) <- "start"
 
 #篩選變數end開頭為01 與 type為小客車
