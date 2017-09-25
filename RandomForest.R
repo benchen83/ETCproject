@@ -108,7 +108,6 @@ table <- local({
 })
 nrow(table)
 View(table)
-nrow(table[table$differ > 600,])
 View(dataOringin[table$differ>1000,c("RecordT","time")])
 
 
