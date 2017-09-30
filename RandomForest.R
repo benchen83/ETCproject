@@ -44,8 +44,8 @@ trans <- local({
   trans
 })
 #station <- c("F233N","F256N","F293N","F339N","F376N","F413N","F467N","F509N","F532N","F557N","F584N","F633N","F664N","F681N","F750N","F880N","F928N")
-#轉換成1 0
 
+#轉換成1 0
 data$F233N <- trans[data$F233N]
 data$F256N <- trans[data$F256N]
 data$F293N <- trans[data$F293N]
@@ -62,14 +62,17 @@ data$F664N <- trans[data$F664N]
 data$F681N <- trans[data$F681N]
 data$F750N <- trans[data$F750N]
 data$F880N <- trans[data$F880N]
-
-
+head(data)
+#把30分鐘內變成一群、並把國定練續假日篩掉
+minn <- c("00","05","10","15","20","25")
 data1 <- local(
   data %>%
     mutate(hour = substring(data$RecordT,12,13),
-           date=substring(data$RecordT,1,10),
-           holiday=ifelse(date %in% holidayc,1,0)) %>%
-    select(-RecordT,-start,-end,-type) %>%
+           miniute = ifelse(substring(data$RecordT,15,16) %in% minn,"00","30"),
+           date = substring(data$RecordT,1,10),
+           holiday = ifelse(date %in% holidayc,1,0)) %>%
+    filter(holiday==0) %>%
+    select(-RecordT,-start,-end,-type,-holiday) %>%
     arrange(date)
 )
 
@@ -81,20 +84,20 @@ data1$date <- weekdays(data1$date)
 for(i in c(3:21)){
 data1[[i]]<-as.factor(data1[[i]])
 }
-data$
-#檢查
-str(dataOringin)
-unique(data1$date)
-#匯出
-write.csv(x=data1,file = "D:/vargrant/project/monday0925.csv")
+
+# #檢查
+ str(data1)
+# #匯出
+# write.csv(x=data1,file = "D:/vargrant/project/randomforestdataset.csv")
 
 #切割訓練資料與測試資料
-smap <- sample(x = 1:nrow(data1),size = nrow(data1)*0.02)
+smap <- sample(x = 1:nrow(data1),size = nrow(data1)*0.08)
 train <- data1[smap,]
 test <- data1[-smap,-1]
 testans <- data1[-smap,1]
+head(train)
 #建模
-modelrandomfroest <- randomForest(time~.-time,data = train,mtry=3,importance=TRUE, na.action=na.omit)
+modelrandomfroest <- randomForest(time~.-time,data = train,importance=TRUE, na.action=na.omit)
 
 #帶入測試資料
 pred <- predict(object = modelrandomfroest,test)
@@ -104,11 +107,54 @@ testans <- as.data.frame(testans)
 table <- cbind(testans,pred)
 table <- local({
   table %>%
-    mutate(differ = round(abs(pred -testans),2))
+    mutate(differ = round(abs(pred -testans),2),rat =(differ/testans)*100)
 })
-nrow(table)
-View(table)
-View(dataOringin[table$differ>1000,c("RecordT","time")])
+View(train)
+
+str(test)
+# summarise(table,me=mean(rat))
+# nrow(table[table$rat>10,])/nrow(table)
+# summarise(table,me=mean(differ*(1/testans)))
 
 
+g <- ggplot(data1,aes(x=number,y=time))
+g+geom_point(aes(colour=holiday))
+nrow(data1[data1$holiday=="0",])+nrow(data1[data1$holiday=="1",])
+
+
+saveRDS(modelrandomfroest, "D:/vargrant/project/model0928.rds")
+
+trymodel <- readRDS("D:/vargrant/project/model.rds")
+
+identical(modelrandomfroest, trymodel, ignore.environment = TRUE)
+# 
+# Call:
+#   randomForest(formula = time ~ . - time, data = train, mtry = 3,      importance = TRUE, na.action = na.omit) 
+# Type of random forest: regression
+# Number of trees: 500
+# No. of variables tried at each split: 3
+# 
+# Mean of squared residuals: 5247.288
+# % Var explained: 72.35
+# 
+# 
+# 
+# Call:
+#   randomForest(formula = time ~ . - time, data = train, mtry = 3,      importance = TRUE, na.action = na.omit) 
+# Type of random forest: regression
+# Number of trees: 500
+# No. of variables tried at each split: 3
+# 
+# Mean of squared residuals: 5313.775
+# % Var explained: 72.21
+# 
+
+# Call:
+#   randomForest(formula = time ~ . - time, data = train, importance = TRUE,      na.action = na.omit) 
+# Type of random forest: regression
+# Number of trees: 500
+# No. of variables tried at each split: 6
+# 
+# Mean of squared residuals: 4776.164
+# % Var explained: 75.3
 
