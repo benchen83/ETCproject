@@ -3,9 +3,9 @@ library(leaflet)
 library(dplyr)
 library(class)
 library(randomForest)
-etcdoor <- read.csv("C:/Users/Student/Desktop/etcdoor1.csv",header = TRUE,stringsAsFactors = FALSE)
-dataknn <- read.csv("C:/Users/Student/Desktop/serverknnuse.csv",header = TRUE)
-modelfroest <- readRDS("C:/Users/Student/Desktop/model.rds")
+etcdoor <- read.csv("C:/Users/Student/Desktop/Rwebserver/etcdoor1.csv",header = TRUE,stringsAsFactors = FALSE)
+dataknn <- read.csv("C:/Users/Student/Desktop/Rwebserver/serverknnuse.csv",header = TRUE)
+modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/model.rds")
 
 shinyApp(
   ui = fluidPage(
@@ -70,29 +70,21 @@ shinyApp(
     ),
   server = function(input, output) {
 
-    
   randomforestdata <- renderDataTable(pred <- local({
-    time = substring(as.character(input$selectminute),3,4)
-    trandate <- local({
-      trandate <- c(1,2,3,4,5,6,7) 
-      names(trandate) <- c("星期一","星期二","星期三","星期四","星期五","星期六","星期日")
-      trandate
-    })
-  # trandate[weekdays(as.Date(input$date))]
     
     #knn  
     outputdata <-  local({
     train <- dataknn[,-c(1,6)]
     train.ans <- dataknn[,6]
-    
     trandate <- local({
       trandate <- c(1,2,3,4,5,6,7) 
       names(trandate) <- c("星期一","星期二","星期三","星期四","星期五","星期六","星期日")
       trandate
     })
-    
-    test <- data.frame(date=trandate[weekdays(as.Date(input$date))],hour=substring(input$selectminute,1,2),minute=substring(input$selectminute,4,5),end=1)
-    
+    test <- data.frame(date = trandate[weekdays(as.Date(input$date))],
+                       hour = substring(input$selectminute,1,2),
+                       minute = substring(input$selectminute,4,5),
+                       end = 1)
     outputdata <- knn(train = train ,test = test ,cl = train.ans ,k = 1)
     outputdata <- as.character.default(outputdata)
     outputdata <- as.integer(outputdata)
@@ -101,10 +93,8 @@ shinyApp(
     outputdata
     })
     #randomforest
-    dataOringin <- data.frame(end=etcdoor[etcdoor$SInter==input$select,"ID"]) 
-    
-    data <- local({
-                  dataOringin %>%
+    dataOringin <- data.frame(end = etcdoor[etcdoor$SInter==input$select,"ID"]) 
+    data <- local({ dataOringin %>%
                      mutate("F233N" = as.character((dataOringin$end=="01F0233N")),
                             "F256N" = as.character((dataOringin$end=="01F0256N")),
                             "F293N" = as.character((dataOringin$end=="01F0293N")),
@@ -120,8 +110,7 @@ shinyApp(
                             "F664N" = as.character((dataOringin$end=="01F0664N")),
                             "F681N" = as.character((dataOringin$end=="01F0681N")),
                             "F750N" = as.character((dataOringin$end=="01F0750N")),
-                            "F880N" = as.character((dataOringin$end=="01F0880N")))
-                })
+                            "F880N" = as.character((dataOringin$end=="01F0880N")))})
     trans <- local({
       trans <- c("1","0")
       names(trans) <- c(TRUE,FALSE)
@@ -143,28 +132,25 @@ shinyApp(
     data$F681N <- trans[data$F681N]
     data$F750N <- trans[data$F750N]
     data$F880N <- trans[data$F880N]
-    data1 <- data.frame(hour="00",miniute="30",date=weekdays(as.Date(input$date)))
+    data1 <- data.frame(hour = substring(input$selectminute,1,2),
+                        miniute = substring(input$selectminute,4,5),
+                        date = weekdays(as.Date(input$date)))
     data <- cbind(data[,-1],data1)
     data <- cbind(outputdata,data)
-    
-
-    
-    
+    #轉換成FACTOR 並加入新的levels
     for(i in c(2:20)){
       data[[i]] <- as.factor(data[[i]])
     }
     for(i in c(2:17)){
-      data[,i] <- factor(x=data[,i],levels =(c("0","1")))
+      data[,i] <- factor(x = data[,i], levels = c("0","1"))
     }
-    data$hour <- factor(x=data$hour, levels =c("00","01","02","03","04","05","06","07","08"
+    data$hour <- factor(x = data$hour, levels = c("00","01","02","03","04","05","06","07","08"
                            ,"09","10","11","12","13","14","15","16","17"
                            ,"18","19","20","21","22","23"))
-    data$miniute <- factor(x=data$miniute ,levels =  c("00","30"))
-    data$date <- factor(x=data$date,levels =c("星期一","星期二","星期三","星期四","星期五","星期六","星期日"))
+    data$miniute <- factor(x = data$miniute ,levels =  c("00","30"))
+    data$date <- factor(x = data$date,
+                        levels = c("星期一","星期二","星期三","星期四","星期五","星期六","星期日"))
      
-    
-
-    
      pred <- predict(object = modelfroest,data)
      pred <- as.data.frame(pred)
      pred
@@ -180,10 +166,9 @@ shinyApp(
     output$value <- renderPrint({substring(input$selectminute,1,2)})
     
     map = leaflet(etcdoor) %>% addTiles() %>%
-    addCircleMarkers( lat = ~ Lat , lng = ~ Lon ,color ='#ff7575')
+    addCircleMarkers( lat = ~ Lat , lng = ~ Lon , color ='#ff7575')
     output$myMap = renderLeaflet(map)
 
-    
     observe({
       #清空地圖
       proxy <- leafletProxy("myMap", data =etcdoor ) %>%
@@ -193,11 +178,8 @@ shinyApp(
       #畫上filter後的地圖marker
       leafletProxy("myMap", data = filteredData()) %>%
           clearShapes() %>% clearMarkerClusters() %>%
-          addCircleMarkers( lat = ~ Lat , lng = ~ Lon ,color ='#ff7575')
+          addCircleMarkers( lat = ~ Lat , lng = ~ Lon , color ='#ff7575')
 
     }) 
-    
-    
-    
   }
 )
