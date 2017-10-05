@@ -5,7 +5,7 @@ library(class)
 library(randomForest)
 etcdoor <- read.csv("C:/Users/Student/Desktop/Rwebserver/etcdoor1.csv",header = TRUE,stringsAsFactors = FALSE)
 dataknn <- read.csv("C:/Users/Student/Desktop/Rwebserver/serverknnuse.csv",header = TRUE)
-modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/model.rds")
+modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/model0928.rds")
 channel <- read.csv("C:/Users/Student/Desktop/Rwebserver/channelall.csv",header = TRUE)
 
 
@@ -14,11 +14,10 @@ channel <- read.csv("C:/Users/Student/Desktop/Rwebserver/channelall.csv",header 
 shinyApp(
   ui = fluidPage(
     leafletOutput('myMap'),
-    selectInput("channel", label = h3("起點"),choices = channel$type),
+    selectInput("channel", label = h3("起點"),choices = unique(channel$type),selected = channel[channel$type=="國道一號","type"]),
     selectInput("select", label = h3("起點"),choices = channel$name),
     selectInput("out", label = h3("終點"),choices = channel$name,selected = channel[2,"name"]),
     dataTableOutput("aa"),
-    textOutput("text"),
     dateInput("date", label = h3("Date input"), value = "2017-10-18",language = "zh-TW"),
     selectInput("selectminute", label = h3("Select box"), 
                 choices = list("00:00" = "00:00", 
@@ -119,7 +118,9 @@ shinyApp(
       names(trandate) <- c("星期一","星期二","星期三","星期四","星期五","星期六","星期日")
       trandate
     })
-    test <- data.frame(date = trandate[weekdays(as.Date(input$date))],
+    dayget <- as.data.frame(trandate[weekdays(as.Date(input$date))])
+    names(dayget) <- c("day")
+    test <- data.frame(date = dayget$day,
                        hour = substring(input$selectminute,1,2),
                        minute = substring(input$selectminute,4,5),
                        end = transformstation$route)
@@ -197,11 +198,10 @@ shinyApp(
     filteredData <- reactive({
         etcdoor[etcdoor$SInter==input$select,]
     })
-    texttry <- renderText(etcdoor[etcdoor$SInter==input$select,"ID"])
       
-    output$text <- texttry 
+ 
     output$aa <- randomforestdata
-    output$value <- renderPrint({substring(input$selectminute,1,2)})
+
     
     map = leaflet(etcdoor) %>% addTiles() %>%
     addCircleMarkers( lat = ~ Lat , lng = ~ Lon , color ='#ff7575')
