@@ -6,14 +6,19 @@ library(randomForest)
 etcdoor <- read.csv("C:/Users/Student/Desktop/Rwebserver/etcdoor1.csv",header = TRUE,stringsAsFactors = FALSE)
 dataknn <- read.csv("C:/Users/Student/Desktop/Rwebserver/serverknnuse.csv",header = TRUE)
 modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/model.rds")
+channel <- read.csv("C:/Users/Student/Desktop/Rwebserver/channelall.csv",header = TRUE)
+
+
+
 
 shinyApp(
   ui = fluidPage(
     leafletOutput('myMap'),
-    selectInput("select", label = h3("Select box"), 
-                choices = etcdoor$SInter),
-                dataTableOutput("aa"),
-                textOutput("text"),
+    selectInput("channel", label = h3("起點"),choices = channel$type),
+    selectInput("select", label = h3("起點"),choices = channel$name),
+    selectInput("out", label = h3("終點"),choices = channel$name,selected = channel[2,"name"]),
+    dataTableOutput("aa"),
+    textOutput("text"),
     dateInput("date", label = h3("Date input"), value = "2017-10-18",language = "zh-TW"),
     selectInput("selectminute", label = h3("Select box"), 
                 choices = list("00:00" = "00:00", 
@@ -63,19 +68,52 @@ shinyApp(
                                "22:00" = "22:00", 
                                "22:30" = "22:30",
                                "23:00" = "23:00", 
-                               "23:30" = "23:30"
-                ), 
-                selected = 1),
-    fluidRow(column(3, verbatimTextOutput("value")))
+                               "23:30" = "23:30" ),selected = 1)
     ),
   server = function(input, output) {
+    
 
+  
   randomforestdata <- renderDataTable(pred <- local({
     
+    etc <- local({ 
+      etcdoor[grep("01F",etcdoor$ID),c(1,4)] %>%
+        mutate(mile = substring(ID,4,7))  %>% 
+        select(ID,mile)
+    })
+    etc$mile <- as.numeric(etc$mile) / 10
+    
+    stationselect <- local({ 
+      if(channel[channel$name==input$select,2]> channel[channel$name==input$out,2]){
+        judge <- channel[channel$name==input$select,2] > etc$mile
+        judge1 <- channel[channel$name==input$out,2] < etc$mile
+      }else{
+        judge <- channel[channel$name==input$select,2] < etc$mile
+        judge1 <- channel[channel$name==input$out,2] > etc$mile
+      }
+    
+    stationselect <- as.data.frame(etc[judge & judge1,1])
+    names(stationselect) <- c("station")
+    stationselect$station <- as.character(stationselect$station)
+    stationselect
+    })
+    transformstation <- local({
+    #各站轉換
+    tranend <- local({
+      tranend <- c(1:161)
+      names(tranend) <- etcdoor$ID
+      tranend
+    })
+    transformstation <- tranend[stationselect$station]
+    transformstation <- as.data.frame(transformstation)
+    names(transformstation) <- c("route")
+    transformstation
+    })
     #knn  
     outputdata <-  local({
-    train <- dataknn[,-c(1,6)]
-    train.ans <- dataknn[,6]
+    
+    train <- dataknn[,-5]
+    train.ans <- dataknn[,5]
     trandate <- local({
       trandate <- c(1,2,3,4,5,6,7) 
       names(trandate) <- c("星期一","星期二","星期三","星期四","星期五","星期六","星期日")
@@ -84,16 +122,16 @@ shinyApp(
     test <- data.frame(date = trandate[weekdays(as.Date(input$date))],
                        hour = substring(input$selectminute,1,2),
                        minute = substring(input$selectminute,4,5),
-                       end = 1)
+                       end = transformstation$route)
     outputdata <- knn(train = train ,test = test ,cl = train.ans ,k = 1)
     outputdata <- as.character.default(outputdata)
     outputdata <- as.integer(outputdata)
     outputdata <- as.data.frame(outputdata)
-    names(outputdata) <- "number"
+    names(outputdata) <- c("number")
     outputdata
     })
     #randomforest
-    dataOringin <- data.frame(end = etcdoor[etcdoor$SInter==input$select,"ID"]) 
+    dataOringin <- data.frame(end = stationselect$station) 
     data <- local({ dataOringin %>%
                      mutate("F233N" = as.character((dataOringin$end=="01F0233N")),
                             "F256N" = as.character((dataOringin$end=="01F0256N")),
