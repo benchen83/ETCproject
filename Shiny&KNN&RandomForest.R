@@ -5,19 +5,19 @@ library(class)
 library(randomForest)
 etcdoor <- read.csv("C:/Users/Student/Desktop/Rwebserver/etcdoor1.csv",header = TRUE,stringsAsFactors = FALSE)
 dataknn <- read.csv("C:/Users/Student/Desktop/Rwebserver/serverknnuse.csv",header = TRUE)
-modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/model0928.rds")
-channel <- read.csv("C:/Users/Student/Desktop/Rwebserver/channelall.csv",header = TRUE)
+modelfroest <- readRDS("C:/Users/Student/Desktop/Rwebserver/modeltest.rds")
+# channel <- read.csv("C:/Users/Student/Desktop/Rwebserver/channelall.csv",header = TRUE,stringsAsFactors = FALSE)
+channel1 <- read.csv("C:/Users/Student/Desktop/Rwebserver/join.csv",header = TRUE,stringsAsFactors = FALSE)
 
-
-
+str(channel1)
 
 shinyApp(
   ui = fluidPage(
     leafletOutput('myMap'),
-    selectInput("channel", label = h3("起點"),choices = unique(channel$type),selected = channel[channel$type=="國道一號","type"]),
-    selectInput("select", label = h3("起點"),choices = channel$name),
-    selectInput("out", label = h3("終點"),choices = channel$name,selected = channel[2,"name"]),
-    dataTableOutput("aa"),
+    selectInput("channel", label = h3(""),choices = unique(channel1$type)),
+    selectInput("select", label = h3("起點"),choices = channel1$name),
+    selectInput("out", label = h3("終點"),choices = channel1$name),
+    tableOutput("aa"),
     dateInput("date", label = h3("Date input"), value = "2017-10-18",language = "zh-TW"),
     selectInput("selectminute", label = h3("Select box"), 
                 choices = list("00:00" = "00:00", 
@@ -69,11 +69,11 @@ shinyApp(
                                "23:00" = "23:00", 
                                "23:30" = "23:30" ),selected = 1)
     ),
-  server = function(input, output) {
+  server = function(input, output,session) {
     
 
   
-  randomforestdata <- renderDataTable(pred <- local({
+  randomforestdata <- renderTable(pred <- local({
     
     etc <- local({ 
       etcdoor[grep("01F",etcdoor$ID),c(1,4)] %>%
@@ -83,12 +83,12 @@ shinyApp(
     etc$mile <- as.numeric(etc$mile) / 10
     
     stationselect <- local({ 
-      if(channel[channel$name==input$select,2]> channel[channel$name==input$out,2]){
-        judge <- channel[channel$name==input$select,2] > etc$mile
-        judge1 <- channel[channel$name==input$out,2] < etc$mile
+      if(channel1[channel1$name==input$select,"mile"]> channel1[channel1$name==input$out,"mile"]){
+        judge <- channel1[channel1$name==input$select,"mile"] > etc$mile
+        judge1 <- channel1[channel1$name==input$out,"mile"] < etc$mile
       }else{
-        judge <- channel[channel$name==input$select,2] < etc$mile
-        judge1 <- channel[channel$name==input$out,2] > etc$mile
+        judge <- channel1[channel1$name==input$select,"mile"] < etc$mile
+        judge1 <- channel1[channel1$name==input$out,"mile"] > etc$mile
       }
     
     stationselect <- as.data.frame(etc[judge & judge1,1])
@@ -115,7 +115,7 @@ shinyApp(
     train.ans <- dataknn[,5]
     trandate <- local({
       trandate <- c(1,2,3,4,5,6,7) 
-      names(trandate) <- c("星期一","星期二","星期三","星期四","星期五","星期六","星期日")
+      names(trandate) <- c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
       trandate
     })
     dayget <- as.data.frame(trandate[weekdays(as.Date(input$date))])
@@ -188,36 +188,19 @@ shinyApp(
                            ,"18","19","20","21","22","23"))
     data$miniute <- factor(x = data$miniute ,levels =  c("00","30"))
     data$date <- factor(x = data$date,
-                        levels = c("星期一","星期二","星期三","星期四","星期五","星期六","星期日"))
+                        levels = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
      
      pred <- predict(object = modelfroest,data)
-     pred <- as.data.frame(pred)
-     pred
+     sum(pred)
     }))
 
-    filteredData <- reactive({
-        etcdoor[etcdoor$SInter==input$select,]
-    })
-      
- 
     output$aa <- randomforestdata
-
-    
-    map = leaflet(etcdoor) %>% addTiles() %>%
-    addCircleMarkers( lat = ~ Lat , lng = ~ Lon , color ='#ff7575')
-    output$myMap = renderLeaflet(map)
-
     observe({
-      #清空地圖
-      proxy <- leafletProxy("myMap", data =etcdoor ) %>%
-               clearMarkers()
-      proxy %>% clearControls()
-
-      #畫上filter後的地圖marker
-      leafletProxy("myMap", data = filteredData()) %>%
-          clearShapes() %>% clearMarkerClusters() %>%
-          addCircleMarkers( lat = ~ Lat , lng = ~ Lon , color ='#ff7575')
-
+      updateSelectInput(session,"select",
+                        choices = channel1[channel1$type==input$channel,"name"])
+      updateSelectInput(session,"out",
+                        choices = channel1[channel1$type==input$channel,"name"])
     }) 
-  }
-)
+}
+)  
+
